@@ -62,7 +62,8 @@ namespace WinlatorXRBridge
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($""WinlatorXRListener exception: {ex}"");
+                    // fixed: use proper interpolated string syntax
+                    Console.WriteLine($"WinlatorXRListener exception: {ex}");
                 }
             }
         }

@@ -3,13 +3,18 @@ name: Build WinlatorXRBridge
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Verify lib DLLs
         shell: powershell
@@ -19,26 +24,45 @@ jobs:
           foreach ($f in $required) {
             if (-not (Test-Path (Join-Path $PWD "lib\$f"))) { $missing += $f }
           }
-          if ($missing.Count -gt 0) { Write-Error ("Missing: {0}" -f ($missing -join ", ")); exit 1 }
-          else { Write-Host "All required DLLs present." }
+          if ($missing.Count -gt 0) {
+            Write-Error ("Missing required DLLs in repo root lib/: {0}" -f ($missing -join ", "))
+            exit 1
+          } else {
+            Write-Host "All required DLLs present."
+          }
 
       - name: Show dotnet info
         shell: powershell
-        run: dotnet --info
+        run: |
+          dotnet --info
 
       - name: Build project
         shell: powershell
-        run: dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release -v minimal
+        run: |
+          dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release -v minimal
+          if ($LASTEXITCODE -ne 0) { Write-Error "dotnet build failed (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
+
+      - name: Verify artifacts folder (debug if missing)
+        shell: powershell
+        run: |
+          $artifacts = Join-Path $PWD "artifacts"
+          if (-Not (Test-Path $artifacts)) {
+            Write-Error "artifacts/ missing — build likely failed. Listing repo root for debugging:"
+            Get-ChildItem -Path $PWD -Recurse -Force | Select-Object -First 200
+            exit 1
+          }
+          Write-Host "artifacts/ exists."
 
       - name: Create artifact zip
         shell: powershell
         run: |
-          if (-Not (Test-Path artifacts)) { Write-Error "artifacts/ missing — build likely failed"; exit 1 }
+          $artifacts = Join-Path $PWD "artifacts"
           $zip = "WinlatorXRBridge.zip"
           if (Test-Path $zip) { Remove-Item $zip -Force }
-          Compress-Archive -Path "artifacts\*" -DestinationPath $zip -Force
+          Compress-Archive -Path (Join-Path $artifacts "*") -DestinationPath $zip -Force
+          Write-Host "Created $zip"
 
-      - name: Upload artifact
+      - name: Upload artifact (zip + raw artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: WinlatorXRBridge

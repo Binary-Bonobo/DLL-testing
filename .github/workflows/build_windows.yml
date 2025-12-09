@@ -28,7 +28,6 @@ jobs:
           Write-Host "lib folder exists, skipping creation"
         }
 
-    # Skip HarmonyLib download: we already have it in lib/
     - name: Verify HarmonyLib.dll
       run: |
         if (-Not (Test-Path lib\HarmonyLib.dll)) {
@@ -39,5 +38,5 @@ jobs:
 
     - name: Build WinlatorXRBridge DLL
       run: |
-        dotnet build src/WinlatorXRBridge.csproj -c Release
+        dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release
       shell: powershell

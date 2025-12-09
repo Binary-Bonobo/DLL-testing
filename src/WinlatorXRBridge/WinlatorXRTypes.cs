@@ -2,24 +2,26 @@ using System.Numerics;
 
 namespace WinlatorXRBridge
 {
+    // Simple container for the frame — keep fields public for quick access
     public class XRFrame
     {
-        public Quaternion LRot = Quaternion.Identity;
-        public Vector3 LPos = Vector3.Zero;
-        public float LThumbX = 0f;
-        public float LThumbY = 0f;
+        public Quaternion LRot;
+        public float LThumbX;
+        public float LThumbY;
+        public Vector3 LPos;
 
-        public Quaternion RRot = Quaternion.Identity;
-        public Vector3 RPos = Vector3.Zero;
-        public float RThumbX = 0f;
-        public float RThumbY = 0f;
+        public Quaternion RRot;
+        public float RThumbX;
+        public float RThumbY;
+        public Vector3 RPos;
 
-        public Quaternion HRot = Quaternion.Identity;
-        public Vector3 HPos = Vector3.Zero;
-        public float IPD = 0.064f;
-        public float FOVX = 0f;
-        public float FOVY = 0f;
-        public float SYNC = 0f;
+        public Quaternion HRot;
+        public Vector3 HPos;
+
+        public float IPD;
+        public float FOVX;
+        public float FOVY;
+        public float SYNC;
 
         public string ButtonStr = "";
     }

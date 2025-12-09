@@ -1,19 +1,20 @@
-<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D0E4F3BF-0000-0000-0000-000000000001}</ProjectGuid>
+    <!-- Target .NET Framework 4.7.2 (Unity / BepInEx use .NET Framework) -->
+    <TargetFramework>net472</TargetFramework>
     <OutputType>Library</OutputType>
-    <RootNamespace>WinlatorXRBridge</RootNamespace>
     <AssemblyName>WinlatorXRBridge</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <NoStdLib>true</NoStdLib>
+    <RootNamespace>WinlatorXRBridge</RootNamespace>
+
+    <!-- Where compiled DLL will go (relative to csproj) -->
     <OutputPath>..\..\artifacts\</OutputPath>
+
+    <!-- keep portable pdbs for better stack traces -->
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 
-  <!-- References -->
+  <!-- Local (game / BepInEx / Unity) DLL references; make sure these files exist at repo-root/lib/ -->
   <ItemGroup>
     <Reference Include="UnityEngine">
       <HintPath>..\..\lib\UnityEngine.dll</HintPath>
@@ -31,19 +32,16 @@
       <HintPath>..\..\lib\HarmonyLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- Standard .NET references -->
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Net" />
-    <Reference Include="System.Net.Sockets" />
-    <Reference Include="System.Threading" />
-    <Reference Include="System.Numerics" />
   </ItemGroup>
 
-  <!-- Source files -->
   <ItemGroup>
     <Compile Include="Plugin.cs" />
     <Compile Include="WinlatorXRListener.cs" />
     <Compile Include="WinlatorXRTypes.cs" />
   </ItemGroup>
+
+  <!-- Prevent SDK from trying to package references into nuget or copy local -->
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
 </Project>

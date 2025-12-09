@@ -3,117 +3,42 @@ name: Build WinlatorXRBridge
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Ensure lib folder exists
+      - name: Verify lib DLLs
         shell: powershell
         run: |
-          if (-Not (Test-Path lib)) {
-            Write-Host "lib folder missing, creating..."
-            New-Item -ItemType Directory -Path lib | Out-Null
-          } else {
-            Write-Host "lib folder exists"
-          }
-
-      - name: Verify required DLLs in lib/
-        shell: powershell
-        run: |
-          $required = @("UnityEngine.dll","Assembly-CSharp.dll","BepInEx.dll","HarmonyLib.dll")
+          $required = @("UnityEngine.dll","UnityEngine.CoreModule.dll","BepInEx.dll","HarmonyLib.dll")
           $missing = @()
           foreach ($f in $required) {
-            if (-Not (Test-Path (Join-Path $PWD "lib\$f"))) {
-              $missing += $f
-            }
+            if (-not (Test-Path (Join-Path $PWD "lib\$f"))) { $missing += $f }
           }
-          if ($missing.Count -gt 0) {
-            Write-Error ("Missing required lib files: {0}. Place them in repo root lib/ or set up a download step." -f ($missing -join ", "))
-            exit 1
-          } else {
-            Write-Host "All required lib DLLs present."
-          }
+          if ($missing.Count -gt 0) { Write-Error ("Missing: {0}" -f ($missing -join ", ")); exit 1 }
+          else { Write-Host "All required DLLs present." }
 
-      - name: Find MSBuild.exe (robust)
-        id: find_msbuild
+      - name: Show dotnet info
+        shell: powershell
+        run: dotnet --info
+
+      - name: Build project
+        shell: powershell
+        run: dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release -v minimal
+
+      - name: Create artifact zip
         shell: powershell
         run: |
-          $candidates = @(
-            "$Env:ProgramFiles\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
-            "$Env:ProgramFiles\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
-            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
-            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
-            "$Env:ProgramFiles(x86)\MSBuild\14.0\Bin\MSBuild.exe"
-          )
-          $msbuild = $null
-          foreach ($p in $candidates) {
-            if (Test-Path $p) { $msbuild = $p; break }
-          }
-          if (-not $msbuild) {
-            $vswhere = "$Env:ProgramFiles(x86)\Microsoft Visual Studio\Installer\vswhere.exe"
-            if (Test-Path $vswhere) {
-              $instPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath 2>$null
-              if ($instPath) {
-                $candidate = Join-Path $instPath "MSBuild\Current\Bin\MSBuild.exe"
-                if (Test-Path $candidate) { $msbuild = $candidate }
-              }
-            }
-          }
-          if (-not $msbuild) {
-            Write-Error "MSBuild.exe not found on runner. Visual Studio Build Tools may not be installed."
-            exit 1
-          }
-          Write-Host "MSBuild found at: $msbuild"
-          Write-Output "::set-output name=msbuild_path::$msbuild"
+          if (-Not (Test-Path artifacts)) { Write-Error "artifacts/ missing — build likely failed"; exit 1 }
+          $zip = "WinlatorXRBridge.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "artifacts\*" -DestinationPath $zip -Force
 
-      - name: Show MSBuild version
-        shell: powershell
-        run: |
-          $ms = "${{ steps.find_msbuild.outputs.msbuild_path }}"
-          if (-Not (Test-Path $ms)) { Write-Error "msbuild path missing"; exit 1 }
-          & $ms /version
-
-      - name: Build WinlatorXRBridge with MSBuild
-        shell: powershell
-        env:
-          PROJECT_PATH: src/WinlatorXRBridge/WinlatorXRBridge.csproj
-        run: |
-          $ms = "${{ steps.find_msbuild.outputs.msbuild_path }}"
-          if (-Not (Test-Path $ms)) { Write-Error "MSBuild path not found"; exit 1 }
-          Write-Host "Building project $env:PROJECT_PATH ..."
-          & $ms $env:PROJECT_PATH /p:Configuration=Release /p:Platform="AnyCPU" /verbosity:minimal
-          if ($LASTEXITCODE -ne 0) { Write-Error "MSBuild failed (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
-
-      - name: Verify build output
-        shell: powershell
-        run: |
-          $art = Join-Path $PWD "artifacts"
-          if (-Not (Test-Path $art)) {
-            Write-Error "artifacts/ folder not found — build may have failed or OutputPath is different in the .csproj."
-            Get-ChildItem -Recurse -Force | Select-Object -First 20
-            exit 1
-          }
-          Write-Host "Artifacts directory contents:"
-          Get-ChildItem $art -Recurse
-
-      - name: Create zip of artifacts
-        shell: powershell
-        run: |
-          $zipName = "WinlatorXRBridge.zip"
-          if (Test-Path $zipName) { Remove-Item $zipName -Force }
-          Compress-Archive -Path "artifacts\*" -DestinationPath $zipName -Force
-          Write-Host "Created $zipName"
-
-      - name: Upload artifact (zip + raw artifacts)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: WinlatorXRBridge

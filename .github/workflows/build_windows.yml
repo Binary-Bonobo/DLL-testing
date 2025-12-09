@@ -1,0 +1,83 @@
+name: Build WinlatorXRBridge (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+env:
+  ARTIFACT_NAME: WinlatorXRBridge-full
+  PROJECT_PATH: src/WinlatorXRBridge/WinlatorXRBridge.csproj
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Ensure lib folder exists
+        shell: powershell
+        run: |
+          if (!(Test-Path lib)) { New-Item -ItemType Directory -Path lib } else { Write-Host "lib exists" }
+
+      - name: Optionally download game DLLs from private release
+        if: ${{ env.DOWNLOAD_GAME_DLLS == 'true' }}
+        shell: powershell
+        env:
+          PAT: ${{ secrets.GAME_DLL_PAT }}
+          ASSETS_OWNER: ${{ secrets.ASSETS_OWNER }}
+          ASSETS_REPO: ${{ secrets.ASSETS_REPO }}
+          ASSETS_TAG: ${{ secrets.ASSETS_TAG }}
+        run: |
+          $assetList = @("UnityEngine.dll","Assembly-CSharp.dll","BepInEx.dll")
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Env:ASSETS_OWNER/$Env:ASSETS_REPO/releases/tags/$Env:ASSETS_TAG" -Headers @{ Authorization = "token $Env:PAT" }
+          foreach ($name in $assetList) {
+            $asset = $release.assets | Where-Object { $_.name -eq $name }
+            if ($null -eq $asset) { Write-Error "Missing asset $name in release"; exit 1 }
+            $url = $asset.url
+            Write-Host "Downloading $name ..."
+            Invoke-RestMethod -Uri $url -OutFile "lib\$name" -Headers @{ Authorization = "token $Env:PAT"; Accept = "application/octet-stream" } -UseBasicParsing
+          }
+          Write-Host "Downloaded game DLLs into lib\"
+
+      - name: Download Harmony nupkg and extract DLL (robust)
+        shell: powershell
+        run: |
+          $version = "2.2.2"
+          $pkg = "harmonylib"
+          $nupkg = "$pkg.$version.nupkg"
+          $v3 = "https://api.nuget.org/v3-flatcontainer/$pkg/$version/$nupkg"
+          Write-Host "Downloading $v3"
+          try { Invoke-WebRequest -Uri $v3 -OutFile harmony.nupkg -UseBasicParsing -ErrorAction Stop } catch { Write-Host "v3 failed, trying v2"; Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/HarmonyLib/$version" -OutFile harmony.nupkg -UseBasicParsing -ErrorAction Stop }
+          Expand-Archive -Path harmony.nupkg -DestinationPath harmony_pkg -Force
+          $candidates = @("harmony_pkg/lib/net472/HarmonyLib.dll","harmony_pkg/lib/netstandard2.0/HarmonyLib.dll","harmony_pkg/lib/net45/HarmonyLib.dll")
+          foreach ($p in $candidates) { if (Test-Path $p) { Copy-Item $p lib\HarmonyLib.dll -Force; break } }
+          if (-not (Test-Path lib\HarmonyLib.dll)) { $dll = Get-ChildItem -Path harmony_pkg -Recurse -Filter "HarmonyLib.dll" | Select-Object -First 1; if ($dll) { Copy-Item $dll.FullName lib\HarmonyLib.dll -Force } else { Write-Error "Could not find HarmonyLib.dll"; exit 1 } }
+          Write-Host "lib contents:"; Get-ChildItem lib
+
+      - name: Build Project (msbuild)
+        shell: powershell
+        run: |
+          msbuild.exe $env:PROJECT_PATH /p:Configuration=Release /p:OutDir=artifacts\
+
+      - name: Create zip of artifact + repo files
+        shell: powershell
+        run: |
+          $zip = "$($env:ARTIFACT_NAME).zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          $tmp = "ziptmp"
+          if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+          New-Item -ItemType Directory -Path $tmp | Out-Null
+          Copy-Item -Path artifacts\* -Destination $tmp -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path README.md -Destination $tmp -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path (Join-Path $tmp "*") -DestinationPath $zip -Force
+          Write-Host "Created $zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            artifacts
+            ${{ env.ARTIFACT_NAME }}.zip

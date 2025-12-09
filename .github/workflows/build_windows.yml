@@ -27,9 +27,8 @@ jobs:
           if ($missing.Count -gt 0) {
             Write-Error ("Missing required DLLs in repo root lib/: {0}" -f ($missing -join ", "))
             exit 1
-          } else {
-            Write-Host "All required DLLs present."
           }
+          Write-Host "All required DLLs present."
 
       - name: Show dotnet info
         shell: powershell
@@ -40,18 +39,21 @@ jobs:
         shell: powershell
         run: |
           dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release -v minimal
-          if ($LASTEXITCODE -ne 0) { Write-Error "dotnet build failed (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "dotnet build failed (exit $LASTEXITCODE)"
+            exit $LASTEXITCODE
+          }
 
-      - name: Verify artifacts folder (debug if missing)
+      - name: Verify artifacts folder
         shell: powershell
         run: |
           $artifacts = Join-Path $PWD "artifacts"
-          if (-Not (Test-Path $artifacts)) {
-            Write-Error "artifacts/ missing — build likely failed. Listing repo root for debugging:"
+          if (-not (Test-Path $artifacts)) {
+            Write-Error "artifacts folder missing - build likely failed. Listing repository contents:"
             Get-ChildItem -Path $PWD -Recurse -Force | Select-Object -First 200
             exit 1
           }
-          Write-Host "artifacts/ exists."
+          Write-Host "artifacts folder exists."
 
       - name: Create artifact zip
         shell: powershell
@@ -59,10 +61,10 @@ jobs:
           $artifacts = Join-Path $PWD "artifacts"
           $zip = "WinlatorXRBridge.zip"
           if (Test-Path $zip) { Remove-Item $zip -Force }
-          Compress-Archive -Path (Join-Path $artifacts "*") -DestinationPath $zip -Force
+          Compress-Archive -Path "$artifacts\*" -DestinationPath $zip -Force
           Write-Host "Created $zip"
 
-      - name: Upload artifact (zip + raw artifacts)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: WinlatorXRBridge

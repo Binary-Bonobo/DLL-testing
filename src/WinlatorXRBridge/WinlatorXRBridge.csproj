@@ -1,6 +1,5 @@
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <!-- Build configuration -->
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{D0E4F3BF-0000-0000-0000-000000000001}</ProjectGuid>
@@ -8,23 +7,20 @@
     <RootNamespace>WinlatorXRBridge</RootNamespace>
     <AssemblyName>WinlatorXRBridge</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <TargetFrameworkProfile></TargetFrameworkProfile>
-    <!-- NoStdLib true was present before - keep it if needed -->
-    <NoStdLib>true</NoStdLib>
-    <!-- OutputPath points to artifacts/ relative to csproj -->
     <OutputPath>..\..\artifacts\</OutputPath>
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
+    <NoStdLib>false</NoStdLib>
   </PropertyGroup>
 
+  <!-- References to Unity, BepInEx, Harmony, and .NET assemblies -->
   <ItemGroup>
-    <!-- Local game/BepInEx references: Workflow will place DLLs into repo root lib/ or you can commit them into lib/ -->
-    <Reference Include="UnityEngine">
-      <HintPath>..\..\lib\UnityEngine.dll</HintPath>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>..\..\lib\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\lib\Assembly-CSharp.dll</HintPath>
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\lib\UnityEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="BepInEx">
@@ -35,16 +31,21 @@
       <HintPath>..\..\lib\HarmonyLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
+    <!-- Standard .NET references -->
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Net" />
+    <Reference Include="System.Net.Sockets" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Threading" />
   </ItemGroup>
 
+  <!-- Source files -->
   <ItemGroup>
-    <!-- Your mod source files -->
     <Compile Include="Plugin.cs" />
     <Compile Include="WinlatorXRListener.cs" />
     <Compile Include="WinlatorXRTypes.cs" />
   </ItemGroup>
-
-  <!-- Import the standard C# / common targets so MSBuild has the Build target -->
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
 </Project>

@@ -14,11 +14,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '7.0.x'
-
     - name: Ensure lib folder exists
       run: |
         if (-Not (Test-Path lib)) {
@@ -27,6 +22,7 @@ jobs:
         } else {
           Write-Host "lib folder exists, skipping creation"
         }
+      shell: powershell
 
     - name: Verify HarmonyLib.dll
       run: |
@@ -35,8 +31,25 @@ jobs:
         } else {
           Write-Host "HarmonyLib.dll found, using committed DLL"
         }
+      shell: powershell
 
     - name: Build WinlatorXRBridge DLL
       run: |
-        dotnet build src/WinlatorXRBridge/WinlatorXRBridge.csproj -c Release
+        msbuild src/WinlatorXRBridge/WinlatorXRBridge.csproj /p:Configuration=Release
       shell: powershell
+
+    - name: Zip artifacts
+      run: |
+        $artifactPath = "$PWD\artifacts"
+        if (-Not (Test-Path $artifactPath)) {
+          Write-Error "Build failed or artifacts folder missing."
+          exit 1
+        }
+        Compress-Archive -Path "$artifactPath\*" -DestinationPath "$PWD\WinlatorXRBridge.zip" -Force
+      shell: powershell
+
+    - name: Upload DLL zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: WinlatorXRBridge
+        path: WinlatorXRBridge.zip

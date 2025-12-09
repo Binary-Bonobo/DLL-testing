@@ -1,5 +1,6 @@
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <!-- Build configuration -->
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{D0E4F3BF-0000-0000-0000-000000000001}</ProjectGuid>
@@ -8,7 +9,9 @@
     <AssemblyName>WinlatorXRBridge</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <TargetFrameworkProfile></TargetFrameworkProfile>
+    <!-- NoStdLib true was present before - keep it if needed -->
     <NoStdLib>true</NoStdLib>
+    <!-- OutputPath points to artifacts/ relative to csproj -->
     <OutputPath>..\..\artifacts\</OutputPath>
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
@@ -35,8 +38,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Your mod source files -->
     <Compile Include="Plugin.cs" />
     <Compile Include="WinlatorXRListener.cs" />
     <Compile Include="WinlatorXRTypes.cs" />
   </ItemGroup>
+
+  <!-- Import the standard C# / common targets so MSBuild has the Build target -->
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 </Project>
